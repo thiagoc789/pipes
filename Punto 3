@@ -1,0 +1,133 @@
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#define READ 0
+#define WRITE 1
+#define MAXIMO_NUMERO_DE_CARACTERES  500
+
+int main() {
+char aux[MAXIMO_NUMERO_DE_CARACTERES];
+printf("Ingrese comando: ");  
+  while(fgets(aux,MAXIMO_NUMERO_DE_CARACTERES,stdin) && strcmp("Fin\n",aux) != 0)
+  { 
+  char * maxComandos[500];
+  maxComandos[0] = strtok(aux, " ");
+  int tamanoComandos;
+	char * comandos[] = {"|",">"};		
+	for(int i = 1; i < 500; i++)
+	{
+	  maxComandos[i] = strtok(NULL, " ");
+	  if(maxComandos[i] == NULL)
+		{
+			tamanoComandos = i;
+			i = 500;
+			break;
+		}
+	}
+char *primerComando[tamanoComandos+1];
+char *segundoComando[tamanoComandos+1];
+int posicionComando = 0;
+int tamano1 = 0;
+int tamano2 = 0;	
+
+//Revisamos si hay un comando y nos da la posicion
+for(int i = 0; i < tamanoComandos; i++)
+	{	
+		if(strcmp(maxComandos[i],comandos[0]) == 0 || strcmp(maxComandos[i],comandos[1]) == 0 || posicionComando != 0)
+		{
+			if(posicionComando !=0)
+			{
+				segundoComando[i-(posicionComando+1)] = strtok(maxComandos[i], "\n"); 
+			}else{
+				posicionComando = i;
+				tamano1 = i;
+				tamano2 = tamanoComandos - (i+1);
+			}
+		}
+		else
+		{
+			primerComando[i] = strtok(maxComandos[i], "\n");
+			if(i == tamanoComandos-1)
+			tamano1 = tamanoComandos;
+		}
+	}
+	primerComando[tamano1] = 0;
+	segundoComando[tamano2] = 0;
+	//Sin pipe o redireccionamiento ejecutamos un comando normalmente 
+  //Con execvp y los comandos que nos manden
+	if(posicionComando == 0)
+	{
+		int id = fork();
+		if(id == 0)
+		{		
+			execvp(primerComando[0], primerComando);
+			perror("Comando incorrecto");
+			exit(EXIT_FAILURE);
+		}
+		else if (id == -1)
+		{
+			perror("Fallo la invocacion de la funcion Fork()");
+    		exit(EXIT_FAILURE);
+		}else{
+			int child = wait(NULL);
+		}
+	}
+  //Checkeamos si hay un pipe en los comandos que ejecutaron
+  //Si hay ejecutamos el primerComando | segundoComando
+	else{
+		if(strcmp(maxComandos[posicionComando],"|") == 0)
+		{
+			pid_t id;
+			switch(id = fork()) 
+			{
+				case 0:	
+				{
+					int fd[2];
+ 					if (pipe(fd) == -1) {
+						perror("Creating pipe");
+						exit(EXIT_FAILURE);
+  					}
+					int id_auxiliar = fork();		
+					if(id_auxiliar == 0)
+					{
+						close(fd[WRITE]);
+						dup2(fd[READ], STDIN_FILENO);
+						execvp(segundoComando[0], segundoComando);
+						perror("Comando Incorrecto");
+						exit(EXIT_FAILURE);
+					}
+					else if (id_auxiliar == -1)
+					{
+						perror("Fallo Invocacion De La Funcion Fork()");
+						exit(EXIT_FAILURE);
+					}else{
+						close(fd[READ]);
+						dup2(fd[WRITE], STDOUT_FILENO);
+						execvp(primerComando[0], primerComando);
+						perror("command failed");
+						exit(EXIT_FAILURE);
+					}
+				}
+				case -1:
+				{
+					perror("Fallo Del Fork()");
+					exit(EXIT_FAILURE);
+				}
+				default:
+				{
+					int espera = wait(NULL);
+				}
+			}
+		}
+		else{
+        //FALTA REDIRECCIONAMIENTO
+		}
+	}
+	printf("Ingrese comando: ");
+  } 
+}
