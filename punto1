@@ -1,0 +1,63 @@
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <stdlib.h>
+
+#define READ  0
+#define WRITE 1
+
+int main(int argc, char *argv[]) {
+ 
+  pid_t pid;
+  int fd[2];
+
+  if (pipe(fd) == -1) {
+	perror("Creating pipe");
+	exit(EXIT_FAILURE);
+  }
+   char * auxiliar[10];
+   auxiliar[0] = strtok(argv[1], " ");
+   for(int i = 1; i < 10; i++)
+   {
+	   
+		auxiliar[i] = strtok(NULL, " ");
+		if(auxiliar[i] == NULL)
+		{
+			i = 10;
+			break;
+		}
+   }
+   char * auxiliar2[10];
+   auxiliar2[0] = strtok(argv[2], " ");
+   for(int i = 1; i < 10; i++)
+   {
+	   
+		auxiliar2[i] = strtok(NULL, " ");
+		if(auxiliar[i] == NULL)
+		{
+			i = 10;
+			break;
+		}
+   }
+
+  switch(pid = fork()) {
+
+  case 0:
+	close(fd[WRITE]);
+	dup2(fd[READ], STDIN_FILENO);
+
+	execvp(auxiliar2[0], auxiliar2);
+
+  case -1:
+	perror("fork() failed)");
+    exit(EXIT_FAILURE);
+
+  default:
+	close(fd[READ]);
+	dup2(fd[WRITE], STDOUT_FILENO);
+	execvp(auxiliar[0], auxiliar);
+  }
+  
+}
